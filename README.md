@@ -14,4 +14,5 @@ Cjelogenomske asocijacijske studije (GWAS) u PLINKu
 [PLINK Res Data](https://zzz.bwh.harvard.edu/plink/res.shtml)
 
 ### 2.2. Fenotipski podaci:
-CEU_simulated_phenotypes.list
+[CEU_simulated_phenotypes.list](CEU_simulated_phenotypes.list)
+
