@@ -16,3 +16,5 @@ Cjelogenomske asocijacijske studije (GWAS) u PLINKu
 ### 2.2. Fenotipski podaci:
 [CEU_simulated_phenotypes.list](CEU_simulated_phenotypes.list)
 
+## 3. Kod
+
