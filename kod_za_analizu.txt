@@ -1,0 +1,117 @@
+##23.10.2023.
+#SRCE 
+
+##Analiziramo Central european dataset
+
+wget https://zzz.bwh.harvard.edu/plink/dist/hapmap_CEU_r23a.zip
+unzip hapmap_CEU_r23a.zip
+
+##uzimamo samo autosomalne kromosome (autosome) 1-22
+plink --bfile hapmap_CEU_r23a --chr 1-22 --make-bed --out hapmap_CEU_r23a_autosomal
+
+##sortiramo CEU genotype data
+plink --bfile hapmap_CEU_r23a_autosomal --make-bed --out hapmap_CEU_sorted
+
+###kopiramo simulirani fenotipski file iz shared direktorija:
+cp "/opt/shared/srce/CEU_simulated_phenotypes.list"  /home/npleic/tutorial ##(ovo promijeniti)
+
+#spojimo fenotipske s genotipskim podacima
+plink --bfile hapmap_CEU_sorted --pheno CEU_simulated_phenotypes.list --make-bed --out CEU_hapmap_sorted_pheno
+
+##filtriramo na MAF, genotyping call rare i individual call rate
+plink --bfile CEU_hapmap_sorted_pheno --maf 0.05 --geno 0.05 --mind 0.1 --make-bed --out hapmap_CEU_filtered
+
+
+##kako bismo mogli kontrolirati analizu na populacijsku stratifikaciju, provodimo PCA analizu
+
+##1. pročišćavamo varijante:
+plink --bfile hapmap_CEU_filtered \
+       --indep 50 5 2 \
+      --out pruned_data
+
+
+###2. provodimo PCA:
+plink --bfile hapmap_CEU_filtered \
+      --extract pruned_data.prune.in \
+      --pca 3 \
+      --out pca_result
+
+##dodajemo header na rezultirajući PCA file:
+echo -e "FID\tIID\tPC1\tPC2\tPC3" | cat - pca_result.eigenvec > pca_result_header.eigenvec
+
+##asocijacijska analiza za binarni fenotip s kontrolom na spol i prve 3 PCA komponente:
+plink --bfile hapmap_CEU_filtered \
+      --logistic sex hide-covar\
+      --pheno CEU_simulated_phenotypes.list \
+      --pheno-name Phenotype_binary \
+      --allow-no-sex \
+      --missing-phenotype -9 \
+      --covar pca_result_header.eigenvec \
+      --covar-name PC1-PC3 \
+      --ci 0.95 \
+      --out CEU_binary_results
+
+##Za domaći rad
+##asocijacijska analiza za kvantitativni fenotip s kontrolom na spol i prve 3 PCA komponente:
+plink --bfile hapmap_CEU_filtered \
+      --linear sex hide-covar\
+      --pheno CEU_simulated_phenotypes.list \
+      --pheno-name Phenotype_qt \
+      --allow-no-sex \
+      --missing-phenotype -9 \
+      --covar pca_result_header.eigenvec \
+      --covar-name PC1-PC3 \
+      --ci 0.95 \
+      --out CEU_qt_results
+
+#tu završava naš rad u PLINKu
+
+
+Zatim pokrećemo R/RStudio:
+R
+install.packages("data.table")
+library(data.table)
+
+##učitavamo rezultate
+
+results<-as.data.frame(fread("/home/npleic/tutorial/CEU_binary_results.assoc.logistic", header=T, sep=" ", stringsAsFactors=FALSE))
+str(results)
+
+install.packages("qqman")
+library(qqman)
+
+##izbacimo p-vrijednosti koje su NA (missing)
+results <- results[!is.na(results$P), ]
+
+
+##sljedeće tri linije pokrenuti zajedno:
+png("Manhattan plot of binary phenotype GWAS in CEU.png")
+manhattan(results, chr="CHR", bp="BP", snp="SNP", p="P", main="Manhattan Plot of CEU Data", col = c("blue","orange","red","purple"), chrlabs = NULL,
+  suggestiveline = -log10(1e-06), genomewideline = -log10(5e-08), highlight = NULL, logp = TRUE,ylim = c(0, 8.5))
+dev.off()
+
+##isti kod vrijedi i za kvantitativni fenotip, uz promjenjena imena datoteka
+
+
+##QQ plot
+
+
+png("QQ plot of the binary phenotype GWAS in CEU.png")
+qq(results$P, main="QQ Plot of CEU Data",ylim = c(0, 5), xlim=c(0,5) )
+dev.off()
+
+###Sortiramo rezultate da dobijemo SNPove s najnižom p-vrijednosti:
+
+results_sorted <- results[order(results$P), ]
+head(results_sorted, 10)
+
+top10<-results_sorted[1:10,]
+
+install.packages("openxlsx")
+library(openxlsx)
+
+##Zapisujemo 10 najznačajnijih SNPova u excel file:
+write.xlsx(top10, file = "Top10_variants.xlsx")
+
+q()
+
