@@ -10,3 +10,4 @@ Cjelogenomske asocijacijske studije (GWAS) u PLINKu
 #2.1. Genotipski podaci:
 https://zzz.bwh.harvard.edu/plink/res.shtml
 #2.2. Fenotipski podaci:
+CEU_simulated_phenotypes.list
